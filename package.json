@@ -1,6 +1,6 @@
 {
   "name": "whatsapp-n8n-llm-starter",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "n8n workflow kit that answers WhatsApp Business messages with an LLM, with human handoff and logging.",
   "private": true,
   "license": "MIT",
