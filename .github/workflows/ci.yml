@@ -5,8 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
+    name: Unit tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,7 +20,33 @@ jobs:
       - name: Validate workflow JSON
         run: |
           for f in workflows/*.json scripts/fixtures/*.json; do jq empty "$f"; done
-      - name: Check shell script syntax
-        run: bash -n scripts/simulate.sh
+      - name: Check script syntax
+        run: |
+          bash -n scripts/simulate.sh
+          for f in scripts/*.mjs test/*.mjs; do node --check "$f"; done
+      - name: Validate docker-compose.yml
+        run: cp .env.example .env && docker compose config --quiet && rm .env
       - name: Run tests
         run: npm test
+
+  e2e:
+    name: End-to-end (real n8n + mocks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      # n8n 2.x requires Node 24
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Read the n8n version pinned in docker-compose.yml
+        id: n8n
+        run: echo "version=$(sed -nE 's/.*N8N_VERSION:-([0-9.]+)\}.*/\1/p' docker-compose.yml)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-n8n-${{ steps.n8n.outputs.version }}-${{ runner.os }}
+      - name: Install n8n ${{ steps.n8n.outputs.version }}
+        run: npm install --global --no-audit --no-fund "n8n@${{ steps.n8n.outputs.version }}"
+      - name: Run end-to-end test
+        run: N8N_BIN="$(command -v n8n)" npm run test:e2e
