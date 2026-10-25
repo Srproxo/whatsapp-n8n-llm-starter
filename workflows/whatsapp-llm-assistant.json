@@ -146,9 +146,9 @@
         330
       ],
       "parameters": {
-        "content": "## 2. Receive and normalize (POST)\nThe webhook answers **200 immediately** (response mode *On received*) so Meta never retries because of a slow LLM.\n- **Normalize Payload** flattens Meta's envelope into one item per message. Status updates (`statuses`) and reactions produce no items, so the run ends.\n- **Deduplicate Messages** drops message ids already seen in the last 24 h.\n- **Is Text Message?** sends audio, images and other types to a polite notice.\n\nStatic data (dedupe, memory, log) is saved only while the workflow is **active**.",
+        "content": "## 2. Receive and normalize (POST)\n- **Verify Signature** checks Meta's `X-Hub-Signature-256` (HMAC-SHA256 of the raw body with `WA_APP_SECRET`). Wrong or missing signature: **401** and nothing else runs. Live (`WA_DRY_RUN=false`) without `WA_APP_SECRET`: every POST is refused.\n- **Respond 200** answers right after the check, before any LLM work, so Meta never retries because of a slow model.\n- **Normalize Payload** flattens Meta's envelope into one item per message. Status updates (`statuses`) and reactions produce no items, so the run ends.\n- **Deduplicate Messages** drops message ids already seen in the last 24 h.\n- **Is Text Message?** sends audio, images and other types to a polite notice.\n\nStatic data (dedupe, memory, log) is saved only while the workflow is **active**.",
         "height": 560,
-        "width": 1100,
+        "width": 1820,
         "color": 5
       }
     },
@@ -164,10 +164,93 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "whatsapp",
-        "responseMode": "onReceived",
-        "options": {}
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
       },
       "webhookId": "b0000000-0000-4000-8000-000000000012"
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000047",
+      "name": "Verify Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        560
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Verify Meta Signature\n// Meta signs every webhook POST with HMAC-SHA256(app secret, raw body) and\n// sends it as \"X-Hub-Signature-256: sha256=<hex>\". With WA_APP_SECRET set,\n// only requests with a matching signature go on; the rest get 401.\n// Without WA_APP_SECRET the check is skipped in dry-run mode (local tests)\n// and every request is refused when live (WA_DRY_RUN=false): fail closed.\n// Needs NODE_FUNCTION_ALLOW_BUILTIN=crypto.\nconst secret = $env.WA_APP_SECRET || '';\nconst live = $env.WA_DRY_RUN !== 'true';\nconst items = $input.all();\nconst out = [];\nfor (let i = 0; i < items.length; i++) {\n  const { headers = {}, body = {} } = items[i].json;\n  let signatureValid = live ? false : null; // null = not checked (dry run, no secret)\n  if (secret) {\n    const crypto = require('crypto');\n    const received = String(headers['x-hub-signature-256'] || '');\n    const raw = items[i].binary && items[i].binary.data\n      ? await this.helpers.getBinaryDataBuffer(i, 'data')\n      : Buffer.alloc(0);\n    const expected = 'sha256=' + crypto.createHmac('sha256', secret).update(raw).digest('hex');\n    signatureValid = received.length === expected.length\n      && crypto.timingSafeEqual(Buffer.from(received), Buffer.from(expected));\n  }\n  // The raw body is not needed any more: pass on the parsed JSON only.\n  out.push({ json: { body, signatureValid } });\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000048",
+      "name": "Signature Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        440,
+        560
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c0000000-0000-4000-8000-000000000049",
+              "leftValue": "={{ $json.signatureValid !== false }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000050",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        480
+      ],
+      "parameters": {
+        "respondWith": "noData",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000051",
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        700
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "Invalid signature",
+        "options": {
+          "responseCode": 401
+        }
+      }
     },
     {
       "id": "a0000000-0000-4000-8000-000000000014",
@@ -175,7 +258,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        260,
+        880,
         560
       ],
       "parameters": {
@@ -190,7 +273,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        520,
+        1100,
         560
       ],
       "parameters": {
@@ -205,7 +288,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        780,
+        1540,
         560
       ],
       "parameters": {
@@ -237,7 +320,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        780,
+        1540,
         780
       ],
       "parameters": {
@@ -252,7 +335,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1080,
+        1840,
         330
       ],
       "parameters": {
@@ -268,7 +351,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1140,
+        1900,
         560
       ],
       "parameters": {
@@ -283,7 +366,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1400,
+        2160,
         560
       ],
       "parameters": {
@@ -316,7 +399,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1660,
+        2420,
         660
       ],
       "parameters": {
@@ -341,7 +424,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1920,
+        2680,
         660
       ],
       "parameters": {
@@ -366,7 +449,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2180,
+        2940,
         660
       ],
       "parameters": {
@@ -381,7 +464,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        2260,
+        3020,
         330
       ],
       "parameters": {
@@ -397,7 +480,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2440,
+        3200,
         660
       ],
       "parameters": {
@@ -430,7 +513,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2700,
+        3460,
         600
       ],
       "parameters": {
@@ -445,7 +528,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2700,
+        3460,
         800
       ],
       "parameters": {
@@ -460,7 +543,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        2960,
+        3720,
         600
       ],
       "parameters": {
@@ -493,7 +576,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        3240,
+        4000,
         330
       ],
       "parameters": {
@@ -509,7 +592,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3300,
+        4060,
         600
       ],
       "parameters": {
@@ -524,7 +607,7 @@
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        3560,
+        4320,
         880
       ],
       "parameters": {
@@ -550,7 +633,7 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        3560,
+        4320,
         1000
       ],
       "parameters": {
@@ -575,7 +658,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        4260,
+        5020,
         330
       ],
       "parameters": {
@@ -591,7 +674,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4320,
+        5080,
         600
       ],
       "parameters": {
@@ -606,7 +689,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        4580,
+        5340,
         600
       ],
       "parameters": {
@@ -639,7 +722,7 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        4840,
+        5600,
         740
       ],
       "parameters": {}
@@ -650,7 +733,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        4840,
+        5600,
         520
       ],
       "parameters": {
@@ -682,7 +765,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5100,
+        5860,
         600
       ],
       "parameters": {
@@ -697,7 +780,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5360,
+        6120,
         600
       ],
       "parameters": {
@@ -712,7 +795,7 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
-        5620,
+        6380,
         600
       ],
       "parameters": {
@@ -780,6 +863,46 @@
       ]
     },
     "Webhook: WhatsApp Messages (POST)": {
+      "main": [
+        [
+          {
+            "node": "Verify Signature",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Signature": {
+      "main": [
+        [
+          {
+            "node": "Signature Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Signature Valid?": {
+      "main": [
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond 200": {
       "main": [
         [
           {

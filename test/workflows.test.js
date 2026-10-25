@@ -118,7 +118,8 @@ test('main workflow: GET and POST webhooks share the path', () => {
   assert.deepEqual(hooks.map((h) => h.parameters.httpMethod).sort(), ['GET', 'POST']);
   assert.equal(new Set(hooks.map((h) => h.parameters.path)).size, 1);
   const post = hooks.find((h) => h.parameters.httpMethod === 'POST');
-  assert.equal(post.parameters.responseMode, 'onReceived', 'POST must answer 200 right away');
+  assert.equal(post.parameters.responseMode, 'responseNode', 'POST answers from Respond 200 / Respond 401');
+  assert.equal(post.parameters.options.rawBody, true, 'the signature is computed over the raw body');
   const get = hooks.find((h) => h.parameters.httpMethod === 'GET');
   assert.equal(get.parameters.responseMode, 'responseNode');
   assert.equal(new Set(hooks.map((h) => h.webhookId)).size, 2);
@@ -137,6 +138,20 @@ test('main workflow: verification compares the token with WA_VERIFY_TOKEN and an
   const denied = wf.nodes.find((n) => n.name === 'Respond 403');
   assert.equal(denied.parameters.options.responseCode, 403);
   assert.deepEqual(wf.connections['Is Verify Token Valid?'].main.map((b) => b.map((t) => t.node)), [['Respond Challenge'], ['Respond 403']]);
+});
+
+test('main workflow: signature check runs first and answers 401 or 200 before any other work', () => {
+  const wf = loadJson(FILES[0]);
+  const next = (n) => wf.connections[n].main.map((b) => b.map((t) => t.node));
+  assert.deepEqual(next('Webhook: WhatsApp Messages (POST)'), [['Verify Signature']]);
+  assert.deepEqual(next('Verify Signature'), [['Signature Valid?']]);
+  assert.deepEqual(next('Signature Valid?'), [['Respond 200'], ['Respond 401']]);
+  assert.deepEqual(next('Respond 200'), [['Normalize Payload']]);
+  assert.equal(wf.connections['Respond 401'], undefined, 'a rejected request stops there');
+  const byName = (n) => wf.nodes.find((x) => x.name === n);
+  assert.equal(byName('Respond 401').parameters.options.responseCode, 401);
+  assert.equal(byName('Respond 200').parameters.options.responseCode, 200);
+  assert.match(JSON.stringify(byName('Signature Valid?').parameters), /signatureValid !== false/);
 });
 
 test('main workflow: required stages exist', () => {
@@ -193,6 +208,7 @@ test('docker-compose.yml: required variables exist in .env.example and secrets a
   const example = fs.readFileSync(path.join(ROOT, '.env.example'), 'utf8');
   assert.match(compose, /^services:\n {2}n8n:/m);
   assert.match(compose, /N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"/);
+  assert.match(compose, /NODE_FUNCTION_ALLOW_BUILTIN: crypto/, 'Verify Signature needs crypto');
   assert.match(compose, /env_file:\n\s+- \.env/);
   for (const m of compose.matchAll(/\$\{([A-Z0-9_]+)[:?-]/g)) {
     assert.match(example, new RegExp(`^${m[1]}=`, 'm'), `${m[1]} not in .env.example`);

@@ -3,6 +3,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { createHmac } = require('node:crypto');
 const { ROOT, loadJson, runCode, asWebhookItem } = require('./helpers/harness');
 
 const wf = loadJson('workflows/whatsapp-llm-assistant.json');
@@ -25,6 +26,46 @@ test('simulate.sh has valid bash syntax and is executable', () => {
   const file = path.join(ROOT, 'scripts/simulate.sh');
   require('node:child_process').execFileSync('bash', ['-n', file]);
   assert.ok(fs.statSync(file).mode & 0o111, 'not executable');
+});
+
+// Verify Signature receives what the Webhook node emits with "Raw Body" on:
+// parsed JSON plus the exact bytes as binary property "data".
+function signedRequest(raw, { secret = 'app-secret', header } = {}) {
+  const headers = { 'content-type': 'application/json' };
+  const signature = header !== undefined ? header : 'sha256=' + createHmac('sha256', secret).update(raw).digest('hex');
+  if (signature !== null) headers['x-hub-signature-256'] = signature;
+  return {
+    items: [{ headers, query: {}, body: JSON.parse(raw) }],
+    binary: [{ data: { data: Buffer.from(raw).toString('base64'), mimeType: 'application/json' } }],
+  };
+}
+const verify = (req, env) => runCode(wf, 'Verify Signature', req.items, { env, binary: req.binary });
+// Meta escapes non-ASCII characters, so the raw bytes differ from JSON.stringify(body).
+const META_RAW = fs.readFileSync(path.join(ROOT, 'scripts/fixtures/text-message.json'), 'utf8')
+  .replace(/[\u0080-\uffff]/g, (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));
+
+test('Verify Signature: valid HMAC of the raw body passes, body is forwarded without the raw copy', async () => {
+  const [r] = await verify(signedRequest(META_RAW), { WA_APP_SECRET: 'app-secret' });
+  assert.equal(r.signatureValid, true);
+  assert.equal(r.body.entry[0].changes[0].value.messages[0].text.body, 'Hola! ¿A qué hora abren el sábado y cuánto sale una docena de galletas?');
+  assert.deepEqual(Object.keys(r).sort(), ['body', 'signatureValid']);
+});
+
+test('Verify Signature: wrong secret, tampered body, missing or malformed header fail', async () => {
+  const env = { WA_APP_SECRET: 'app-secret' };
+  assert.equal((await verify(signedRequest(META_RAW, { secret: 'other' }), env))[0].signatureValid, false);
+  const tampered = signedRequest(META_RAW);
+  tampered.binary[0].data.data = Buffer.from(META_RAW.replace('galletas', 'cookies')).toString('base64');
+  assert.equal((await verify(tampered, env))[0].signatureValid, false);
+  assert.equal((await verify(signedRequest(META_RAW, { header: null }), env))[0].signatureValid, false);
+  assert.equal((await verify(signedRequest(META_RAW, { header: 'sha256=abc' }), env))[0].signatureValid, false);
+});
+
+test('Verify Signature: without WA_APP_SECRET it is skipped in dry run and fails closed when live', async () => {
+  const [dry] = await verify(signedRequest(META_RAW, { header: null }), { WA_DRY_RUN: 'true' });
+  assert.equal(dry.signatureValid, null);
+  const [live] = await verify(signedRequest(META_RAW), { WA_DRY_RUN: 'false' });
+  assert.equal(live.signatureValid, false);
 });
 
 test('Normalize Payload: text message', async () => {

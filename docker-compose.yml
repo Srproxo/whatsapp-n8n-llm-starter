@@ -15,6 +15,8 @@ services:
       # The workflows read WA_*, LLM_*, OWNER_EMAIL... with $env.NAME.
       # n8n blocks that by default, so it must be switched off.
       N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      # "Verify Signature" computes an HMAC with Node's crypto module.
+      NODE_FUNCTION_ALLOW_BUILTIN: crypto
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?Set N8N_ENCRYPTION_KEY in .env}
       WEBHOOK_URL: ${WEBHOOK_URL:-http://localhost:5678/}
       N8N_HOST: ${N8N_HOST:-localhost}
