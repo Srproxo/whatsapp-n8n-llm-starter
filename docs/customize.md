@@ -35,7 +35,7 @@ Some newer OpenAI models reject `max_tokens` and want `max_completion_tokens`. I
 
 ### Switching to the Anthropic Messages API
 
-Anthropic's API is not OpenAI-compatible. Edit the HTTP node **Call LLM (OpenAI-compatible)** (rename it if you like; if you rename it, update the connection names are handled by n8n automatically):
+Anthropic's API is not OpenAI-compatible. Edit the HTTP node **Call LLM (OpenAI-compatible)** (n8n updates connections if you rename it, but keep "Call LLM" in the name so the docs stay searchable):
 
 - **URL**: `https://api.anthropic.com/v1/messages`
 - **Headers**:
