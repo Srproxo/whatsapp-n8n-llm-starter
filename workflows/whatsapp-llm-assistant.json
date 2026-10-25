@@ -8,8 +8,8 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -60,
-        -420
+        760,
+        -80
       ],
       "parameters": {
         "content": "## WhatsApp + LLM assistant (starter)\nTwo entry points on the same path `/webhook/whatsapp`:\n- **GET** answers Meta's one-time webhook verification.\n- **POST** receives customer messages.\n\nBefore activating: set the environment variables from `.env.example`, create the credentials marked *(example)* if you enable the optional nodes, and activate (publish) both workflows. The error workflow is preset when you import with the n8n CLI, which keeps workflow ids; after an import from the editor, pick *WhatsApp LLM Assistant - Error Handler* under **Settings > Error workflow**.\n\nAll business text lives in two Set nodes: **Business Knowledge Base** and **System Prompt**.",
@@ -41,7 +41,7 @@
       "typeVersion": 2,
       "position": [
         0,
-        40
+        80
       ],
       "parameters": {
         "httpMethod": "GET",
@@ -58,7 +58,7 @@
       "typeVersion": 2,
       "position": [
         260,
-        40
+        80
       ],
       "parameters": {
         "conditions": {
@@ -109,7 +109,7 @@
       "typeVersion": 1.1,
       "position": [
         520,
-        -20
+        20
       ],
       "parameters": {
         "respondWith": "text",
@@ -126,7 +126,7 @@
       "typeVersion": 1.1,
       "position": [
         520,
-        140
+        180
       ],
       "parameters": {
         "respondWith": "text",
@@ -147,7 +147,7 @@
       ],
       "parameters": {
         "content": "## 2. Receive and normalize (POST)\n- **Verify Signature** checks Meta's `X-Hub-Signature-256` (HMAC-SHA256 of the raw body with `WA_APP_SECRET`). Wrong or missing signature: **401** and nothing else runs. Live (`WA_DRY_RUN=false`) without `WA_APP_SECRET`: every POST is refused.\n- **Respond 200** answers right after the check, before any LLM work, so Meta never retries because of a slow model.\n- **Normalize Payload** flattens Meta's envelope into one item per message. Status updates (`statuses`) and reactions produce no items, so the run ends.\n- **Deduplicate Messages** drops message ids already seen in the last 24 h.\n- **Skip Paused Chats** drops messages from numbers handed to a person less than `HANDOFF_PAUSE_MINUTES` ago (they are logged as `paused`).\n- **Is Text Message?** sends audio, images and other types to a polite notice.\n\nStatic data (dedupe, memory, pauses, log) is saved only by **active** (published) executions, as a whole at the end of each run: executions that overlap can overwrite each other's updates. See `docs/architecture.md`.",
-        "height": 560,
+        "height": 640,
         "width": 1820,
         "color": 5
       }
@@ -159,7 +159,7 @@
       "typeVersion": 2,
       "position": [
         0,
-        560
+        640
       ],
       "parameters": {
         "httpMethod": "POST",
@@ -178,7 +178,7 @@
       "typeVersion": 2,
       "position": [
         220,
-        560
+        640
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
@@ -193,7 +193,7 @@
       "typeVersion": 2,
       "position": [
         440,
-        560
+        640
       ],
       "parameters": {
         "conditions": {
@@ -226,7 +226,7 @@
       "typeVersion": 1.1,
       "position": [
         660,
-        480
+        560
       ],
       "parameters": {
         "respondWith": "noData",
@@ -242,7 +242,7 @@
       "typeVersion": 1.1,
       "position": [
         660,
-        700
+        780
       ],
       "parameters": {
         "respondWith": "text",
@@ -259,7 +259,7 @@
       "typeVersion": 2,
       "position": [
         880,
-        560
+        640
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
@@ -274,7 +274,7 @@
       "typeVersion": 2,
       "position": [
         1100,
-        560
+        640
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
@@ -289,7 +289,7 @@
       "typeVersion": 2,
       "position": [
         1320,
-        560
+        640
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
@@ -304,7 +304,7 @@
       "typeVersion": 2,
       "position": [
         1540,
-        560
+        640
       ],
       "parameters": {
         "conditions": {
@@ -336,7 +336,7 @@
       "typeVersion": 2,
       "position": [
         1540,
-        780
+        860
       ],
       "parameters": {
         "mode": "runOnceForEachItem",
@@ -355,7 +355,7 @@
       ],
       "parameters": {
         "content": "## 3. Knowledge, prompt and memory\n- **Detect Handoff Keywords** looks for \"talk to a person\" or complaint wording (es / en / pt) before spending an LLM call.\n- **Business Knowledge Base** (Set): everything the assistant may say. Replace the fictional *Sunrise Bakery* text with yours.\n- **System Prompt** (Set): the rules. It defines the `[[HANDOFF]]` marker.\n- **Build LLM Messages** adds the last `MEMORY_MESSAGES` messages of this number (default 10, 24 h) plus the new question.",
-        "height": 560,
+        "height": 640,
         "width": 1100,
         "color": 5
       }
@@ -367,7 +367,7 @@
       "typeVersion": 2,
       "position": [
         1900,
-        560
+        640
       ],
       "parameters": {
         "mode": "runOnceForEachItem",
@@ -382,7 +382,7 @@
       "typeVersion": 2,
       "position": [
         2160,
-        560
+        640
       ],
       "parameters": {
         "conditions": {
@@ -415,7 +415,7 @@
       "typeVersion": 3.4,
       "position": [
         2420,
-        660
+        740
       ],
       "parameters": {
         "mode": "manual",
@@ -440,7 +440,7 @@
       "typeVersion": 3.4,
       "position": [
         2680,
-        660
+        740
       ],
       "parameters": {
         "mode": "manual",
@@ -465,7 +465,7 @@
       "typeVersion": 2,
       "position": [
         2940,
-        660
+        740
       ],
       "parameters": {
         "mode": "runOnceForEachItem",
@@ -479,8 +479,8 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        3020,
-        330
+        -60,
+        1310
       ],
       "parameters": {
         "content": "## 4. LLM call\n**Call LLM (OpenAI-compatible)** posts to `LLM_BASE_URL/chat/completions` with `LLM_MODEL` and `LLM_API_KEY`. That covers OpenAI, OpenRouter, Groq and a local Ollama (`http://host.docker.internal:11434/v1`).\nRetries 3 times (2 s apart). If it still fails, the **error output** goes to *LLM Error Fallback*, which hands the chat to a person.\n\nTo use Anthropic instead, see `docs/customize.md` (URL, headers and body change; **Parse LLM Reply** already reads both formats).",
@@ -495,8 +495,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3200,
-        660
+        120,
+        1640
       ],
       "parameters": {
         "method": "POST",
@@ -528,8 +528,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3460,
-        600
+        380,
+        1580
       ],
       "parameters": {
         "mode": "runOnceForEachItem",
@@ -543,8 +543,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3460,
-        800
+        380,
+        1780
       ],
       "parameters": {
         "mode": "runOnceForEachItem",
@@ -558,8 +558,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        3720,
-        600
+        640,
+        1580
       ],
       "parameters": {
         "conditions": {
@@ -591,12 +591,12 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        4000,
-        330
+        920,
+        1310
       ],
       "parameters": {
         "content": "## 5. Human handoff\nReached from the keyword check, the LLM marker or an LLM failure. The customer gets a short \"a person will contact you\" message (the LLM's own sentence when it wrote one).\nThe owner notification is **disabled by default**: enable **Notify Owner (Email)** (SMTP credential + `OWNER_EMAIL`, `SMTP_FROM_EMAIL`) and/or **Notify Owner (Telegram)** (bot credential + `TELEGRAM_CHAT_ID`). A failed notification never blocks the customer's reply.\nAfter the reply is sent, **Update Memory** pauses the bot for that number for `HANDOFF_PAUSE_MINUTES` (default 60, `0` = off) so it does not talk over the person.",
-        "height": 760,
+        "height": 900,
         "width": 1000,
         "color": 5
       }
@@ -607,8 +607,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4060,
-        600
+        980,
+        1580
       ],
       "parameters": {
         "mode": "runOnceForEachItem",
@@ -622,8 +622,8 @@
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        4320,
-        880
+        1240,
+        1860
       ],
       "parameters": {
         "fromEmail": "={{ $env.SMTP_FROM_EMAIL }}",
@@ -648,8 +648,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        4320,
-        1000
+        1240,
+        2040
       ],
       "parameters": {
         "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
@@ -673,8 +673,8 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        5020,
-        330
+        1940,
+        1310
       ],
       "parameters": {
         "content": "## 6. Send, remember, log\n- **Finalize Reply** is where all paths meet: trims the text, converts Markdown bold to WhatsApp bold and builds `to` + `reply`.\n- **Dry Run?**: with `WA_DRY_RUN=true` nothing is sent. For local tests point `WA_GRAPH_BASE_URL` at `scripts/mock-whatsapp.mjs` instead and keep it `false`, as in production.\n- **Send WhatsApp Reply** calls the Cloud API at `WA_GRAPH_BASE_URL` (`WA_PHONE_NUMBER_ID`, `WA_ACCESS_TOKEN`), 3 attempts. If it fails for good, the run errors and the *Error Handler* workflow fires.\n- **Update Memory** stores the exchange (and starts the handoff pause); **Log Exchange** keeps the last 200 exchanges. Both use static data. The optional **Google Sheets: Append Log** node (disabled) keeps a permanent log.",
@@ -689,8 +689,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5080,
-        600
+        2000,
+        1580
       ],
       "parameters": {
         "mode": "runOnceForEachItem",
@@ -704,8 +704,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        5340,
-        600
+        2260,
+        1580
       ],
       "parameters": {
         "conditions": {
@@ -737,8 +737,8 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        5600,
-        740
+        2520,
+        1720
       ],
       "parameters": {}
     },
@@ -748,8 +748,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        5600,
-        520
+        2520,
+        1500
       ],
       "parameters": {
         "method": "POST",
@@ -780,8 +780,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5860,
-        600
+        2780,
+        1580
       ],
       "parameters": {
         "mode": "runOnceForEachItem",
@@ -795,8 +795,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        6120,
-        600
+        3040,
+        1580
       ],
       "parameters": {
         "mode": "runOnceForEachItem",
@@ -810,8 +810,8 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
-        6380,
-        600
+        3300,
+        1580
       ],
       "parameters": {
         "resource": "sheet",
