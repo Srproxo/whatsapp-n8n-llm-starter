@@ -158,7 +158,7 @@ test('main workflow: required stages exist', () => {
   const wf = loadJson(FILES[0]);
   const names = wf.nodes.map((n) => n.name);
   for (const n of ['Normalize Payload', 'Deduplicate Messages', 'Business Knowledge Base', 'System Prompt', 'Call LLM (OpenAI-compatible)',
-    'Prepare Handoff Reply', 'Send WhatsApp Reply', 'Log Exchange', 'Update Memory', 'Google Sheets: Append Log']) {
+    'Prepare Handoff Reply', 'Send WhatsApp Reply', 'Verify Signature', 'Skip Paused Chats', 'Log Exchange', 'Update Memory', 'Google Sheets: Append Log']) {
     assert.ok(names.includes(n), `missing node: ${n}`);
   }
   assert.ok(wf.nodes.filter((n) => n.type === STICKY).length >= 6, 'sticky notes explain each part');
@@ -183,6 +183,8 @@ test('workflows carry fixed ids and the main one points at the error handler', (
 test('main workflow: status updates stop the flow (Normalize emits nothing) and the unsupported branch exists', () => {
   const wf = loadJson(FILES[0]);
   assert.deepEqual(wf.connections['Is Text Message?'].main.map((b) => b.map((t) => t.node)), [['Detect Handoff Keywords'], ['Prepare Unsupported Reply']]);
+  assert.deepEqual(wf.connections['Deduplicate Messages'].main, [[{ node: 'Skip Paused Chats', type: 'main', index: 0 }]]);
+  assert.deepEqual(wf.connections['Skip Paused Chats'].main, [[{ node: 'Is Text Message?', type: 'main', index: 0 }]]);
 });
 
 test('error handler: Error Trigger feeds a formatter', () => {

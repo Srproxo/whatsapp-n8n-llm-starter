@@ -285,6 +285,47 @@ test('Update Memory + Log Exchange: store the exchange and cap the log', async (
   assert.match(last.timestamp, /^\d{4}-\d{2}-\d{2}T/);
 });
 
+test('Skip Paused Chats: numbers in a handoff pause get no bot reply and are logged', async () => {
+  const now = Date.now();
+  const staticData = { paused: { '15558889999': now + 60000, '15557654321': now - 1000 } };
+  const items = [
+    { ...base, from: '15558889999', messageId: 'wamid.P1', text: 'Hello?' },
+    { ...base, from: '15557654321', messageId: 'wamid.P2' }, // pause expired
+    { ...base, from: '15550000000', messageId: 'wamid.P3' }, // never paused
+  ];
+  const out = await runCode(wf, 'Skip Paused Chats', items, { staticData });
+  assert.deepEqual(out.map((o) => o.messageId), ['wamid.P2', 'wamid.P3']);
+  assert.equal(staticData.log.length, 1);
+  assert.deepEqual([staticData.log[0].kind, staticData.log[0].inbound, staticData.log[0].reply], ['paused', 'Hello?', null]);
+  assert.match(staticData.log[0].pausedUntil, /^\d{4}-/);
+});
+
+test('Skip Paused Chats: nothing paused, nothing written', async () => {
+  const staticData = {};
+  const out = await runCode(wf, 'Skip Paused Chats', [base], { staticData });
+  assert.equal(out.length, 1);
+  assert.deepEqual(staticData, {}, 'no write means no static data save in n8n');
+});
+
+test('Update Memory: a handoff pauses the bot for HANDOFF_PAUSE_MINUTES (default 60, 0 = off)', async () => {
+  const ctx = { to: base.from, from: base.from, text: 'I want a person', reply: 'Someone will write to you.', kind: 'handoff' };
+  const update = (env, kind = 'handoff') => {
+    const staticData = {};
+    return runCode(wf, 'Update Memory', [{}], { env, staticData, refs: { 'Finalize Reply': [{ ...ctx, kind }] } }).then(([r]) => ({ r, staticData }));
+  };
+  const t0 = Date.now();
+  const def = await update({});
+  assert.ok(def.staticData.paused[base.from] >= t0 + 60 * 60000 && def.staticData.paused[base.from] <= Date.now() + 60 * 60000);
+  assert.equal(def.r.pausedUntil, new Date(def.staticData.paused[base.from]).toISOString());
+  const five = await update({ HANDOFF_PAUSE_MINUTES: '5' });
+  assert.ok(five.staticData.paused[base.from] <= Date.now() + 5 * 60000);
+  const off = await update({ HANDOFF_PAUSE_MINUTES: '0' });
+  assert.equal(off.staticData.paused, undefined);
+  assert.equal(off.r.pausedUntil, null);
+  const bot = await update({}, 'bot');
+  assert.equal(bot.staticData.paused, undefined, 'normal answers do not pause');
+});
+
 test('end to end on fixtures: text message -> normalized -> not handoff -> messages ready for the LLM', async () => {
   const staticData = {};
   const norm = await normalize('text-message');

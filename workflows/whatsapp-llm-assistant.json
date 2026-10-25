@@ -146,7 +146,7 @@
         330
       ],
       "parameters": {
-        "content": "## 2. Receive and normalize (POST)\n- **Verify Signature** checks Meta's `X-Hub-Signature-256` (HMAC-SHA256 of the raw body with `WA_APP_SECRET`). Wrong or missing signature: **401** and nothing else runs. Live (`WA_DRY_RUN=false`) without `WA_APP_SECRET`: every POST is refused.\n- **Respond 200** answers right after the check, before any LLM work, so Meta never retries because of a slow model.\n- **Normalize Payload** flattens Meta's envelope into one item per message. Status updates (`statuses`) and reactions produce no items, so the run ends.\n- **Deduplicate Messages** drops message ids already seen in the last 24 h.\n- **Is Text Message?** sends audio, images and other types to a polite notice.\n\nStatic data (dedupe, memory, log) is saved only while the workflow is **active**.",
+        "content": "## 2. Receive and normalize (POST)\n- **Verify Signature** checks Meta's `X-Hub-Signature-256` (HMAC-SHA256 of the raw body with `WA_APP_SECRET`). Wrong or missing signature: **401** and nothing else runs. Live (`WA_DRY_RUN=false`) without `WA_APP_SECRET`: every POST is refused.\n- **Respond 200** answers right after the check, before any LLM work, so Meta never retries because of a slow model.\n- **Normalize Payload** flattens Meta's envelope into one item per message. Status updates (`statuses`) and reactions produce no items, so the run ends.\n- **Deduplicate Messages** drops message ids already seen in the last 24 h.\n- **Skip Paused Chats** drops messages from numbers handed to a person less than `HANDOFF_PAUSE_MINUTES` ago (they are logged as `paused`).\n- **Is Text Message?** sends audio, images and other types to a polite notice.\n\nStatic data (dedupe, memory, pauses, log) is saved only by **active** (published) executions, as a whole at the end of each run: executions that overlap can overwrite each other's updates. See `docs/architecture.md`.",
         "height": 560,
         "width": 1820,
         "color": 5
@@ -280,6 +280,21 @@
         "mode": "runOnceForAllItems",
         "language": "javaScript",
         "jsCode": "// Deduplicate Messages\n// Meta can deliver the same webhook more than once. Remember message ids in\n// workflow static data (kept 24 h, max 2000) and drop repeats.\n// Note: static data is only saved by ACTIVE workflows, not by manual test runs.\nconst store = $getWorkflowStaticData('global');\nstore.seen = store.seen || {};\nconst now = Date.now();\nconst TTL_MS = 24 * 60 * 60 * 1000;\nconst MAX_IDS = 2000;\n\nfor (const [id, ts] of Object.entries(store.seen)) {\n  if (now - ts > TTL_MS) delete store.seen[id];\n}\n\nconst fresh = [];\nfor (const item of $input.all()) {\n  const id = item.json.messageId;\n  if (id && store.seen[id]) continue;\n  if (id) store.seen[id] = now;\n  fresh.push(item);\n}\n\nconst ids = Object.keys(store.seen);\nif (ids.length > MAX_IDS) {\n  ids.sort((a, b) => store.seen[a] - store.seen[b]);\n  for (const id of ids.slice(0, ids.length - MAX_IDS)) delete store.seen[id];\n}\nreturn fresh;"
+      }
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000052",
+      "name": "Skip Paused Chats",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        560
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Skip Paused Chats\n// After a handoff the chat belongs to a person for HANDOFF_PAUSE_MINUTES\n// (set in Update Memory). Messages from that number in the meantime get no\n// bot reply; they are only added to the log so the team can see them.\nconst store = $getWorkflowStaticData('global');\nconst paused = store.paused || {};\nconst now = Date.now();\nconst out = [];\nfor (const item of $input.all()) {\n  const until = paused[item.json.from];\n  if (until && until > now) {\n    store.log = store.log || [];\n    store.log.push({\n      timestamp: new Date(now).toISOString(),\n      from: item.json.from,\n      name: item.json.name,\n      messageId: item.json.messageId,\n      inbound: item.json.text,\n      reply: null,\n      kind: 'paused',\n      handoffReason: null,\n      pausedUntil: new Date(until).toISOString(),\n    });\n    if (store.log.length > 200) store.log = store.log.slice(-200);\n    continue;\n  }\n  out.push(item);\n}\nreturn out;"
       }
     },
     {
@@ -580,7 +595,7 @@
         330
       ],
       "parameters": {
-        "content": "## 5. Human handoff\nReached from the keyword check, the LLM marker or an LLM failure. The customer gets a short \"a person will contact you\" message (the LLM's own sentence when it wrote one).\nThe owner notification is **disabled by default**: enable **Notify Owner (Email)** (SMTP credential + `OWNER_EMAIL`, `SMTP_FROM_EMAIL`) and/or **Notify Owner (Telegram)** (bot credential + `TELEGRAM_CHAT_ID`). A failed notification never blocks the customer's reply.",
+        "content": "## 5. Human handoff\nReached from the keyword check, the LLM marker or an LLM failure. The customer gets a short \"a person will contact you\" message (the LLM's own sentence when it wrote one).\nThe owner notification is **disabled by default**: enable **Notify Owner (Email)** (SMTP credential + `OWNER_EMAIL`, `SMTP_FROM_EMAIL`) and/or **Notify Owner (Telegram)** (bot credential + `TELEGRAM_CHAT_ID`). A failed notification never blocks the customer's reply.\nAfter the reply is sent, **Update Memory** pauses the bot for that number for `HANDOFF_PAUSE_MINUTES` (default 60, `0` = off) so it does not talk over the person.",
         "height": 760,
         "width": 1000,
         "color": 5
@@ -662,7 +677,7 @@
         330
       ],
       "parameters": {
-        "content": "## 6. Send, remember, log\n- **Finalize Reply** is where all paths meet: trims the text, converts Markdown bold to WhatsApp bold and builds `to` + `reply`.\n- **Dry Run?**: with `WA_DRY_RUN=true` nothing is sent. For local tests point `WA_GRAPH_BASE_URL` at `scripts/mock-whatsapp.mjs` instead and keep it `false`, as in production.\n- **Send WhatsApp Reply** calls the Cloud API at `WA_GRAPH_BASE_URL` (`WA_PHONE_NUMBER_ID`, `WA_ACCESS_TOKEN`), 3 attempts. If it fails for good, the run errors and the *Error Handler* workflow fires.\n- **Update Memory** and **Log Exchange** use static data. The optional **Google Sheets: Append Log** node (disabled) keeps a permanent log.",
+        "content": "## 6. Send, remember, log\n- **Finalize Reply** is where all paths meet: trims the text, converts Markdown bold to WhatsApp bold and builds `to` + `reply`.\n- **Dry Run?**: with `WA_DRY_RUN=true` nothing is sent. For local tests point `WA_GRAPH_BASE_URL` at `scripts/mock-whatsapp.mjs` instead and keep it `false`, as in production.\n- **Send WhatsApp Reply** calls the Cloud API at `WA_GRAPH_BASE_URL` (`WA_PHONE_NUMBER_ID`, `WA_ACCESS_TOKEN`), 3 attempts. If it fails for good, the run errors and the *Error Handler* workflow fires.\n- **Update Memory** stores the exchange (and starts the handoff pause); **Log Exchange** keeps the last 200 exchanges. Both use static data. The optional **Google Sheets: Append Log** node (disabled) keeps a permanent log.",
         "height": 760,
         "width": 1700,
         "color": 5
@@ -771,7 +786,7 @@
       "parameters": {
         "mode": "runOnceForEachItem",
         "language": "javaScript",
-        "jsCode": "// Update Memory\n// Store this exchange so the next message from the same number has context.\n// Keeps 40 messages per number and the 500 most recently active numbers.\nconst ctx = $('Finalize Reply').item.json;\nconst store = $getWorkflowStaticData('global');\nstore.memory = store.memory || {};\nconst now = Date.now();\n\nif (ctx.kind === 'bot' || ctx.kind === 'handoff') {\n  const list = store.memory[ctx.to] || [];\n  list.push({ role: 'user', content: ctx.text, ts: now });\n  list.push({ role: 'assistant', content: ctx.reply, ts: now });\n  store.memory[ctx.to] = list.slice(-40);\n}\n\nconst numbers = Object.keys(store.memory);\nif (numbers.length > 500) {\n  const last = (n) => store.memory[n][store.memory[n].length - 1].ts;\n  numbers.sort((a, b) => last(a) - last(b));\n  for (const n of numbers.slice(0, numbers.length - 500)) delete store.memory[n];\n}\nreturn { json: ctx };"
+        "jsCode": "// Update Memory\n// Store this exchange so the next message from the same number has context.\n// Keeps 40 messages per number and the 500 most recently active numbers.\n// After a handoff, also pause the bot for this number: for\n// HANDOFF_PAUSE_MINUTES (default 60, 0 = no pause) \"Skip Paused Chats\" lets\n// a person answer without the bot talking over them.\nconst ctx = $('Finalize Reply').item.json;\nconst store = $getWorkflowStaticData('global');\nstore.memory = store.memory || {};\nconst now = Date.now();\n\nif (ctx.kind === 'bot' || ctx.kind === 'handoff') {\n  const list = store.memory[ctx.to] || [];\n  list.push({ role: 'user', content: ctx.text, ts: now });\n  list.push({ role: 'assistant', content: ctx.reply, ts: now });\n  store.memory[ctx.to] = list.slice(-40);\n}\n\nconst numbers = Object.keys(store.memory);\nif (numbers.length > 500) {\n  const last = (n) => store.memory[n][store.memory[n].length - 1].ts;\n  numbers.sort((a, b) => last(a) - last(b));\n  for (const n of numbers.slice(0, numbers.length - 500)) delete store.memory[n];\n}\n\nconst parsed = parseInt($env.HANDOFF_PAUSE_MINUTES, 10);\nconst pauseMinutes = Number.isFinite(parsed) ? Math.max(0, parsed) : 60;\nlet pausedUntil = null;\nif (ctx.kind === 'handoff' && pauseMinutes > 0) {\n  store.paused = store.paused || {};\n  for (const [n, until] of Object.entries(store.paused)) if (until <= now) delete store.paused[n];\n  store.paused[ctx.to] = now + pauseMinutes * 60 * 1000;\n  pausedUntil = new Date(store.paused[ctx.to]).toISOString();\n}\nreturn { json: { ...ctx, pausedUntil } };"
       }
     },
     {
@@ -925,6 +940,17 @@
       ]
     },
     "Deduplicate Messages": {
+      "main": [
+        [
+          {
+            "node": "Skip Paused Chats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip Paused Chats": {
       "main": [
         [
           {
