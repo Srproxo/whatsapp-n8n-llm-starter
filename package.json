@@ -1,0 +1,18 @@
+{
+  "name": "whatsapp-n8n-llm-starter",
+  "version": "0.1.0",
+  "description": "n8n workflow kit that answers WhatsApp Business messages with an LLM, with human handoff and logging.",
+  "private": true,
+  "license": "MIT",
+  "author": "Srproxo",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Srproxo/whatsapp-n8n-llm-starter.git"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\""
+  }
+}
