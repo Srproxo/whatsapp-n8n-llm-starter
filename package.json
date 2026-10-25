@@ -13,6 +13,9 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test \"test/**/*.test.js\""
+    "test": "node --test \"test/**/*.test.js\"",
+    "test:e2e": "node --disable-warning=ExperimentalWarning test/e2e.mjs",
+    "mock:llm": "node scripts/mock-llm.mjs",
+    "mock:whatsapp": "node scripts/mock-whatsapp.mjs"
   }
 }
