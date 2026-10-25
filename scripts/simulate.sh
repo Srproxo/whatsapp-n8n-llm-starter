@@ -33,7 +33,7 @@ verify() {
   query="$(head -n1 "$FIXTURES/verify-request.txt" | sed -E 's#^GET [^?]*\?([^ ]*) HTTP.*#\1#')"
   query="${query//__WA_VERIFY_TOKEN__/$WA_VERIFY_TOKEN}"
   echo ">> GET $PREFIX/whatsapp?$query"
-  curl -sS -o /dev/stderr -w '\n<< HTTP %{http_code}\n' "$BASE_URL$PREFIX/whatsapp?$query"
+  curl -sS -w '\n<< HTTP %{http_code}\n' "$BASE_URL$PREFIX/whatsapp?$query"
 }
 
 post() {
@@ -49,7 +49,7 @@ post() {
     sig=(-H "X-Hub-Signature-256: sha256=$(printf '%s' "$body" | openssl dgst -sha256 -hmac "$WA_APP_SECRET" | sed 's/^.* //')")
   fi
   echo ">> POST $PREFIX/whatsapp  ($1)"
-  curl -sS -o /dev/stderr -w '\n<< HTTP %{http_code}\n' -X POST \
+  curl -sS -w '\n<< HTTP %{http_code}\n' -X POST \
     -H 'Content-Type: application/json' ${sig[@]+"${sig[@]}"} --data-binary "$body" "$BASE_URL$PREFIX/whatsapp"
 }
 
