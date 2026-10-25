@@ -1,0 +1,139 @@
+{
+  "name": "WhatsApp LLM Assistant - Error Handler",
+  "nodes": [
+    {
+      "id": "a0000000-0000-4000-8000-000000001001",
+      "name": "Note: Error handler",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -260
+      ],
+      "parameters": {
+        "content": "## Error handler\nSeparate workflow with an **Error Trigger**. In the main workflow open **Settings > Error workflow** and pick this one: any failed execution (for example the WhatsApp send failing 3 times) arrives here.\n\nThe alert is formatted by **Format Error Message**. Delivery nodes are **disabled by default**: enable the email and/or Telegram node (same variables as the main workflow). Activate this workflow too.",
+        "height": 260,
+        "width": 820,
+        "color": 6
+      }
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000001002",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        80
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000001003",
+      "name": "Format Error Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        80
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "// Format Error Message\n// Builds a short plain-text alert from the Error Trigger payload.\nconst e = $json.execution || {};\nconst w = $json.workflow || {};\nconst message = [\n  'Workflow failed: ' + (w.name || 'unknown'),\n  'Node: ' + (e.lastNodeExecuted || 'unknown'),\n  'Error: ' + String((e.error && e.error.message) || 'unknown').slice(0, 500),\n  'Execution: ' + (e.url || e.id || 'unknown'),\n].join('\\n');\nreturn { json: { message, workflowName: w.name || null, node: e.lastNodeExecuted || null, executionId: e.id || null } };"
+      }
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000001004",
+      "name": "Notify Owner (Email)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "fromEmail": "={{ $env.SMTP_FROM_EMAIL }}",
+        "toEmail": "={{ $env.OWNER_EMAIL }}",
+        "subject": "={{ 'Assistant error: ' + $json.workflowName }}",
+        "emailFormat": "text",
+        "text": "={{ $json.message }}",
+        "options": {}
+      },
+      "disabled": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_ME",
+          "name": "SMTP account (example)"
+        }
+      }
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000001005",
+      "name": "Notify Owner (Telegram)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        520,
+        160
+      ],
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "disabled": true,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_ME",
+          "name": "Telegram bot (example)"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Format Error Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Error Message": {
+      "main": [
+        [
+          {
+            "node": "Notify Owner (Email)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Owner (Telegram)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "starter"
+    }
+  ],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
