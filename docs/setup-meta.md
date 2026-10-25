@@ -25,26 +25,27 @@ On **WhatsApp > API Setup** Meta gives you, at no setup cost:
 
 Send the sample "hello world" template from that page once to open a conversation window with your phone.
 
+Also copy the **App secret** (**App settings > Basic > App secret > Show**) into `WA_APP_SECRET`. The workflow uses it to check the `X-Hub-Signature-256` header Meta adds to every webhook POST; with `WA_DRY_RUN=false` and no secret, every POST is refused.
+
 ## 3. Run n8n and import the workflows
 
 ```bash
 cp .env.example .env        # fill WA_*, LLM_*, N8N_ENCRYPTION_KEY
 docker compose up -d
+docker compose exec n8n n8n import:workflow --separate --input=/workflows
+docker compose exec n8n n8n publish:workflow --id=waLlmAssistErrH1
+docker compose exec n8n n8n publish:workflow --id=waLlmAssistMain1
+docker compose restart n8n
 ```
 
-Open <http://localhost:5678>, create the owner account, then **Workflows > Import from file** and load, in this order:
+The CLI keeps the workflow ids, so the main workflow's error workflow is already set. Open <http://localhost:5678> and create the owner account to see the workflows and their executions.
 
-1. `workflows/error-handler.json`
-2. `workflows/whatsapp-llm-assistant.json`
+If you prefer the editor: **Workflows > Import from file**, first `workflows/error-handler.json`, then `workflows/whatsapp-llm-assistant.json`; in the main workflow set **Settings > Error workflow** to *WhatsApp LLM Assistant - Error Handler*, and **Publish** both. Meta can only reach the **production** URL, which exists while the workflow is published.
 
-(or from the CLI: `docker compose exec n8n n8n import:workflow --input=/workflows/error-handler.json`, same for the other file.)
-
-In the main workflow: **Settings > Error workflow** -> *WhatsApp LLM Assistant - Error Handler*. Activate both workflows (toggle at the top right). Meta can only reach the **production** URL, which exists while the workflow is active.
-
-Quick check without Meta, `WA_DRY_RUN=true` in `.env`:
+Quick check without Meta (point `LLM_BASE_URL` and `WA_GRAPH_BASE_URL` at the mocks as in the README quick start, or keep `WA_DRY_RUN=true`):
 
 ```bash
-scripts/simulate.sh all
+scripts/simulate.sh all     # signs each POST with WA_APP_SECRET, like Meta
 ```
 
 and look at the **Executions** tab of n8n.
@@ -64,12 +65,12 @@ Then set `N8N_WEBHOOK_URL` in `.env` to that public address **with a trailing sl
 1. **WhatsApp > Configuration > Webhook > Edit**.
 2. **Callback URL**: `https://<your-public-address>/webhook/whatsapp`
 3. **Verify token**: the exact value of `WA_VERIFY_TOKEN` in your `.env`.
-4. **Verify and save**. Meta sends the GET request; the workflow answers with the challenge only if the token matches. If it fails, check that the workflow is active, that the URL ends in `/webhook/whatsapp` (not `/webhook-test/`) and that n8n received the variable (restart the container after editing `.env`).
+4. **Verify and save**. Meta sends the GET request; the workflow answers with the challenge only if the token matches. If it fails, check that the workflow is published, that the URL ends in `/webhook/whatsapp` (not `/webhook-test/`) and that n8n received the variable (restart the container after editing `.env`).
 5. Under **Webhook fields** click **Manage** and **subscribe to `messages`**. Without this subscription Meta verifies the URL but never sends customer messages.
 
 ## 6. First real test
 
-Set `WA_DRY_RUN=false` in `.env`, restart (`docker compose up -d`), and write to the test number from your phone. You should get the assistant's reply within a few seconds and see the execution in n8n.
+Set `WA_DRY_RUN=false`, `WA_GRAPH_BASE_URL=https://graph.facebook.com/v21.0` and `WA_APP_SECRET` in `.env`, restart (`docker compose up -d`), and write to the test number from your phone. You should get the assistant's reply within a few seconds and see the execution in n8n.
 
 Notes:
 
@@ -97,9 +98,11 @@ The 24-hour token expires; the assistant would stop answering. For anything last
 
 | Symptom | Likely cause |
 | --- | --- |
-| "The callback URL or verify token couldn't be validated" | Workflow inactive, wrong path, token mismatch, or n8n not reachable from the internet. |
+| "The callback URL or verify token couldn't be validated" | Workflow not published, wrong path, token mismatch, or n8n not reachable from the internet. |
+| Meta shows failed deliveries; executions end at *Respond 401* | `WA_APP_SECRET` missing or not the app secret of the app that owns the webhook. |
 | Verified, but no messages arrive | Not subscribed to `messages`, or your phone is not in the recipient list. |
 | Execution fails at *Send WhatsApp Reply* with 401 / code 190 | Expired or wrong `WA_ACCESS_TOKEN`. |
 | Fails with code 131047 | Outside the 24-hour window: a template is required. |
 | Fails at *Call LLM* | Check `LLM_BASE_URL` (must end in `/v1` or equivalent, not `/chat/completions`), the key and the model name. |
 | Expressions show `$env` access errors | `N8N_BLOCK_ENV_ACCESS_IN_NODE` must be `false` (the compose file sets it). |
+| *Verify Signature* fails with "Cannot find module 'crypto'" | `NODE_FUNCTION_ALLOW_BUILTIN=crypto` is missing (the compose file sets it). |

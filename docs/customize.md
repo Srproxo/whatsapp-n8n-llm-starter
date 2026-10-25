@@ -85,11 +85,13 @@ The node maps columns automatically from those names.
 
 ## 8. Handoff behavior
 
-Three things send a chat to a person: a keyword match, the model's `[[HANDOFF]]` marker, or an LLM failure after 3 attempts. In all of them the customer gets a short message and, if you enabled a notification node, you get the customer's name, number, reason, their last message and a `wa.me` link. The assistant does not stop replying afterwards: if the customer writes again it answers again. If you need "silence while a human takes over", add a flag in static data keyed by number and check it after **Deduplicate Messages**.
+Three things send a chat to a person: a keyword match, the model's `[[HANDOFF]]` marker, or an LLM failure after 3 attempts. In all of them the customer gets a short message and, if you enabled a notification node, you get the customer's name, number, reason, their last message and a `wa.me` link.
+
+After that reply is sent, the bot stays silent in that chat for `HANDOFF_PAUSE_MINUTES` (default 60): **Skip Paused Chats** drops the customer's next messages and only logs them (`kind: "paused"`), so a person can take over without the bot talking over them. Set `0` to keep the bot answering. There is no command to end a pause early yet; the pause expires on its own.
 
 ## 9. Go live
 
-1. `WA_DRY_RUN=false`.
+1. `WA_DRY_RUN=false`, `WA_GRAPH_BASE_URL` pointing at Meta, and `WA_APP_SECRET` set (see `setup-meta.md`).
 2. A permanent System User token in `WA_ACCESS_TOKEN` (see `setup-meta.md`).
 3. Check what you wrote in the knowledge base with real questions, including edge cases (prices, hours, allergens, complaints).
 4. Keep `N8N_VERSION` pinned; before upgrading, run `N8N_VERSION=<new> npm run test:e2e`.
