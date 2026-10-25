@@ -245,9 +245,8 @@ await waitFor('mocks', async () => (await fetch(`${LLM}/health`)).ok && (await f
 
 try {
   log('importing and publishing workflows');
-  for (const file of ['workflows/error-handler.json', 'workflows/whatsapp-llm-assistant.json']) {
-    await n8nCli(['import:workflow', `--input=${path.join(ROOT, file)}`], env);
-  }
+  // the exact command from the README quick start
+  await n8nCli(['import:workflow', '--separate', `--input=${path.join(ROOT, 'workflows')}`], env);
   for (const id of [ERR_ID, MAIN_ID]) await n8nCli(['publish:workflow', `--id=${id}`], env);
 
   log('starting n8n');

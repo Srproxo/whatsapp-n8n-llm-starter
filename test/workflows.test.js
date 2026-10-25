@@ -173,6 +173,11 @@ test('main workflow: required stages exist', () => {
   assert.equal(wf.connections['Call LLM (OpenAI-compatible)'].main.length, 2);
 });
 
+test('no tag is declared twice across workflows (a batch import would hit a UNIQUE constraint)', () => {
+  const names = FILES.flatMap((f) => (loadJson(f).tags || []).map((t) => t.name));
+  assert.equal(new Set(names).size, names.length, `duplicate tags: ${names}`);
+});
+
 test('workflows carry fixed ids and the main one points at the error handler', () => {
   const [main, errorHandler] = FILES.map(loadJson);
   for (const wf of [main, errorHandler]) assert.match(wf.id, /^[A-Za-z0-9]{16}$/, `${wf.name} id`);
