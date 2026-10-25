@@ -129,6 +129,13 @@ test('Build LLM Messages: system prompt, knowledge, capped history and new quest
   assert.equal(r.knowledge, undefined);
 });
 
+test('Build LLM Messages: history never starts with an assistant turn', async () => {
+  const now = Date.now();
+  const history = ['u0', 'a0', 'u1', 'a1'].map((content, i) => ({ role: i % 2 ? 'assistant' : 'user', content, ts: now }));
+  const [r] = await runCode(wf, 'Build LLM Messages', [{ ...base, systemPrompt: 'R', knowledge: 'K' }], { env: { MEMORY_MESSAGES: '3' }, staticData: { memory: { [base.from]: history } } });
+  assert.deepEqual(r.chatMessages.map((m) => m.content), ['u1', 'a1', 'Opening hours?']);
+});
+
 test('Build LLM Messages: MEMORY_MESSAGES=0 disables memory', async () => {
   const staticData = { memory: { '15557654321': [{ role: 'user', content: 'old', ts: Date.now() }] } };
   const [r] = await runCode(wf, 'Build LLM Messages', [{ ...base, systemPrompt: 'R', knowledge: 'K' }], { env: { MEMORY_MESSAGES: '0' }, staticData });
