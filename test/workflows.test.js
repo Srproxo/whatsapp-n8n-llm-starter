@@ -148,7 +148,7 @@ test('main workflow: required stages exist', () => {
   }
   assert.ok(wf.nodes.filter((n) => n.type === STICKY).length >= 6, 'sticky notes explain each part');
   const send = wf.nodes.find((n) => n.name === 'Send WhatsApp Reply');
-  assert.match(send.parameters.url, /graph\.facebook\.com/);
+  assert.match(send.parameters.url, /\$env\.WA_GRAPH_BASE_URL \|\| 'https:\/\/graph\.facebook\.com\/v\d+\.\d+'/, 'base URL is configurable, Meta by default');
   assert.match(send.parameters.url, /WA_PHONE_NUMBER_ID/);
   assert.match(JSON.stringify(send.parameters), /WA_ACCESS_TOKEN/);
   const llm = wf.nodes.find((n) => n.name === 'Call LLM (OpenAI-compatible)');
@@ -156,6 +156,13 @@ test('main workflow: required stages exist', () => {
   assert.match(llm.parameters.jsonBody, /LLM_MODEL/);
   assert.equal(llm.onError, 'continueErrorOutput', 'LLM failure must have its own output');
   assert.equal(wf.connections['Call LLM (OpenAI-compatible)'].main.length, 2);
+});
+
+test('workflows carry fixed ids and the main one points at the error handler', () => {
+  const [main, errorHandler] = FILES.map(loadJson);
+  for (const wf of [main, errorHandler]) assert.match(wf.id, /^[A-Za-z0-9]{16}$/, `${wf.name} id`);
+  assert.notEqual(main.id, errorHandler.id);
+  assert.equal(main.settings.errorWorkflow, errorHandler.id);
 });
 
 test('main workflow: status updates stop the flow (Normalize emits nothing) and the unsupported branch exists', () => {

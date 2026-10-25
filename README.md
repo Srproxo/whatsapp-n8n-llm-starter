@@ -102,7 +102,7 @@ All settings are environment variables read by the workflows with `$env`. See [.
 | `WA_VERIFY_TOKEN` | String you also enter in Meta's webhook form. |
 | `WA_PHONE_NUMBER_ID` | Sender phone number ID from Meta. |
 | `WA_ACCESS_TOKEN` | Temporary or System User token. |
-| `WA_GRAPH_VERSION` | Graph API version in the send URL (default `v21.0`). |
+| `WA_GRAPH_BASE_URL` | Graph API base URL with version (default `https://graph.facebook.com/v21.0`); point it at the mock for local tests. |
 | `WA_DRY_RUN` | `true` logs the reply without calling Meta. |
 | `LLM_BASE_URL` | OpenAI-compatible base URL, ending in `/v1` or equivalent. |
 | `LLM_API_KEY` | API key (any text for Ollama). |

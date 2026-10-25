@@ -1,4 +1,5 @@
 {
+  "id": "waLlmAssistMain1",
   "name": "WhatsApp LLM Assistant",
   "nodes": [
     {
@@ -11,7 +12,7 @@
         -420
       ],
       "parameters": {
-        "content": "## WhatsApp + LLM assistant (starter)\nTwo entry points on the same path `/webhook/whatsapp`:\n- **GET** answers Meta's one-time webhook verification.\n- **POST** receives customer messages.\n\nBefore activating: set the environment variables from `.env.example`, create the credentials marked *(example)* if you enable the optional nodes, and set **Settings > Error workflow** to *WhatsApp LLM Assistant - Error Handler*.\n\nAll business text lives in two Set nodes: **Business Knowledge Base** and **System Prompt**.",
+        "content": "## WhatsApp + LLM assistant (starter)\nTwo entry points on the same path `/webhook/whatsapp`:\n- **GET** answers Meta's one-time webhook verification.\n- **POST** receives customer messages.\n\nBefore activating: set the environment variables from `.env.example`, create the credentials marked *(example)* if you enable the optional nodes, and activate (publish) both workflows. The error workflow is preset when you import with the n8n CLI, which keeps workflow ids; after an import from the editor, pick *WhatsApp LLM Assistant - Error Handler* under **Settings > Error workflow**.\n\nAll business text lives in two Set nodes: **Business Knowledge Base** and **System Prompt**.",
         "height": 300,
         "width": 760,
         "color": 6
@@ -578,7 +579,7 @@
         330
       ],
       "parameters": {
-        "content": "## 6. Send, remember, log\n- **Finalize Reply** is where all paths meet: trims the text, converts Markdown bold to WhatsApp bold and builds `to` + `reply`.\n- **Dry Run?**: with `WA_DRY_RUN=true` nothing is sent to Meta (use it with `scripts/simulate.sh`). Set it to `false` to go live.\n- **Send WhatsApp Reply** calls the Cloud API (`WA_PHONE_NUMBER_ID`, `WA_ACCESS_TOKEN`), 3 attempts. If it fails for good, the run errors and the *Error Handler* workflow fires.\n- **Update Memory** and **Log Exchange** use static data. The optional **Google Sheets: Append Log** node (disabled) keeps a permanent log.",
+        "content": "## 6. Send, remember, log\n- **Finalize Reply** is where all paths meet: trims the text, converts Markdown bold to WhatsApp bold and builds `to` + `reply`.\n- **Dry Run?**: with `WA_DRY_RUN=true` nothing is sent. For local tests point `WA_GRAPH_BASE_URL` at `scripts/mock-whatsapp.mjs` instead and keep it `false`, as in production.\n- **Send WhatsApp Reply** calls the Cloud API at `WA_GRAPH_BASE_URL` (`WA_PHONE_NUMBER_ID`, `WA_ACCESS_TOKEN`), 3 attempts. If it fails for good, the run errors and the *Error Handler* workflow fires.\n- **Update Memory** and **Log Exchange** use static data. The optional **Google Sheets: Append Log** node (disabled) keeps a permanent log.",
         "height": 760,
         "width": 1700,
         "color": 5
@@ -654,7 +655,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "={{ 'https://graph.facebook.com/' + ($env.WA_GRAPH_VERSION || 'v21.0') + '/' + $env.WA_PHONE_NUMBER_ID + '/messages' }}",
+        "url": "={{ ($env.WA_GRAPH_BASE_URL || 'https://graph.facebook.com/v21.0').replace(/\\/+$/, '') + '/' + $env.WA_PHONE_NUMBER_ID + '/messages' }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -1058,7 +1059,8 @@
   "active": false,
   "settings": {
     "executionOrder": "v1",
-    "saveManualExecutions": true
+    "saveManualExecutions": true,
+    "errorWorkflow": "waLlmAssistErrH1"
   },
   "tags": [
     {
