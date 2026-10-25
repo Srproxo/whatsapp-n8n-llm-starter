@@ -57,7 +57,7 @@ Pick one:
 - **ngrok**: `ngrok http 5678`.
 - **A server with a domain** and a reverse proxy (Caddy, Traefik, nginx) with a TLS certificate. Recommended for anything permanent.
 
-Then set `WEBHOOK_URL` in `.env` to that public address **with a trailing slash** (example: `https://assistant.example.com/`) and run `docker compose up -d` again. n8n builds the webhook URLs from this value; without it the editor shows `localhost` URLs.
+Then set `N8N_WEBHOOK_URL` in `.env` to that public address **with a trailing slash** (example: `https://assistant.example.com/`) and run `docker compose up -d` again. n8n builds the webhook URLs from this value; without it the editor shows `localhost` URLs.
 
 ## 5. Register the webhook in Meta
 

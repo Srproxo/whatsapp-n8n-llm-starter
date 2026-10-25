@@ -92,4 +92,4 @@ Three things send a chat to a person: a keyword match, the model's `[[HANDOFF]]`
 1. `WA_DRY_RUN=false`.
 2. A permanent System User token in `WA_ACCESS_TOKEN` (see `setup-meta.md`).
 3. Check what you wrote in the knowledge base with real questions, including edge cases (prices, hours, allergens, complaints).
-4. Pin an n8n version in `N8N_VERSION` instead of `latest`.
+4. Keep `N8N_VERSION` pinned; before upgrading, run `N8N_VERSION=<new> npm run test:e2e`.

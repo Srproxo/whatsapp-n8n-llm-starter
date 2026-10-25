@@ -97,7 +97,7 @@ All settings are environment variables read by the workflows with `$env`. See [.
 | Variable | Purpose |
 | --- | --- |
 | `N8N_ENCRYPTION_KEY` | Encrypts n8n credentials. Required. |
-| `WEBHOOK_URL` | Public base URL of n8n (HTTPS, trailing slash). |
+| `N8N_WEBHOOK_URL` | Public base URL of n8n (HTTPS, trailing slash). |
 | `N8N_VERSION`, `N8N_HOST`, `N8N_PROTOCOL`, `N8N_SECURE_COOKIE`, `GENERIC_TIMEZONE` | n8n runtime settings. |
 | `WA_VERIFY_TOKEN` | String you also enter in Meta's webhook form. |
 | `WA_PHONE_NUMBER_ID` | Sender phone number ID from Meta. |
@@ -141,7 +141,7 @@ The tests validate both workflow files (valid JSON, existing connections, no orp
 
 ## Deploy
 
-- Any host that runs Docker works: put n8n behind a reverse proxy with TLS, set `WEBHOOK_URL`, pin `N8N_VERSION`, use a System User token and `WA_DRY_RUN=false`.
+- Any host that runs Docker works: put n8n behind a reverse proxy with TLS, set `N8N_WEBHOOK_URL`, keep `N8N_VERSION` pinned, use a System User token and `WA_DRY_RUN=false`.
 - Back up the `n8n_data` volume and keep `N8N_ENCRYPTION_KEY` safe.
 - Read the security notes in [docs/architecture.md](docs/architecture.md) first: the POST webhook does not verify Meta's signature, and memory/dedupe use n8n static data, which suits low volume.
 

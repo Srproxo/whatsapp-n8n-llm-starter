@@ -4,7 +4,7 @@
 # n8n UI: http://localhost:5678
 services:
   n8n:
-    image: docker.n8n.io/n8nio/n8n:${N8N_VERSION:-latest}
+    image: docker.n8n.io/n8nio/n8n:${N8N_VERSION:-2.44.6}
     container_name: whatsapp-n8n
     restart: unless-stopped
     ports:
@@ -18,7 +18,7 @@ services:
       # "Verify Signature" computes an HMAC with Node's crypto module.
       NODE_FUNCTION_ALLOW_BUILTIN: crypto
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?Set N8N_ENCRYPTION_KEY in .env}
-      WEBHOOK_URL: ${WEBHOOK_URL:-http://localhost:5678/}
+      N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://localhost:5678/}
       N8N_HOST: ${N8N_HOST:-localhost}
       N8N_PROTOCOL: ${N8N_PROTOCOL:-http}
       GENERIC_TIMEZONE: ${GENERIC_TIMEZONE:-UTC}

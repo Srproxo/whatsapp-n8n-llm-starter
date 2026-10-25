@@ -216,12 +216,16 @@ test('docker-compose.yml: required variables exist in .env.example and secrets a
     assert.match(example, new RegExp(`^${m[1]}=`, 'm'), `${m[1]} not in .env.example`);
   }
   assert.doesNotMatch(compose, /\t/, 'YAML must not contain tabs');
+  const image = compose.match(/image: docker\.n8n\.io\/n8nio\/n8n:\$\{N8N_VERSION:-([^}]+)\}/);
+  assert.ok(image, 'n8n image tag comes from N8N_VERSION');
+  assert.match(image[1], /^\d+\.\d+\.\d+$/, 'default tag is an exact version, not latest');
+  assert.match(example, new RegExp(`^N8N_VERSION=${image[1].replace(/\./g, '\\.')}$`, 'm'), '.env.example pins the same version');
 });
 
 test('.env.example only holds placeholders', () => {
   const example = fs.readFileSync(path.join(ROOT, '.env.example'), 'utf8');
   assert.doesNotMatch(example, /EAA[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,}/);
-  for (const key of ['WA_VERIFY_TOKEN', 'WA_PHONE_NUMBER_ID', 'WA_ACCESS_TOKEN', 'LLM_BASE_URL', 'LLM_API_KEY', 'LLM_MODEL', 'OWNER_EMAIL', 'N8N_ENCRYPTION_KEY', 'WEBHOOK_URL']) {
+  for (const key of ['WA_VERIFY_TOKEN', 'WA_PHONE_NUMBER_ID', 'WA_ACCESS_TOKEN', 'LLM_BASE_URL', 'LLM_API_KEY', 'LLM_MODEL', 'OWNER_EMAIL', 'N8N_ENCRYPTION_KEY', 'N8N_WEBHOOK_URL']) {
     assert.match(example, new RegExp(`^${key}=`, 'm'), key);
   }
 });
