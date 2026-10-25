@@ -6,8 +6,10 @@
 //   npm run test:e2e
 //
 // Env:
-//   N8N_BIN      path to an installed n8n binary (default: npx --yes n8n@N8N_VERSION)
-//   N8N_VERSION  n8n version for npx (default: the one pinned in docker-compose.yml)
+//   N8N_BIN      path to an installed n8n binary. Without it, n8n@N8N_VERSION is
+//                installed once (a few minutes) into <os tmpdir>/wa-n8n-e2e-cache/,
+//                outside the repository, and reused by later runs.
+//   N8N_VERSION  n8n version to install (default: the one pinned in docker-compose.yml)
 //   E2E_KEEP=1   keep the temporary n8n folder and print its path
 //
 // Needs Node >= 22.5 (node:sqlite reads n8n's execution list and static data).
@@ -73,8 +75,21 @@ function start(name, cmd, args, env) {
   return child;
 }
 
-function n8nCommand(args) {
-  return process.env.N8N_BIN ? [process.env.N8N_BIN, args] : ['npx', ['--yes', `n8n@${N8N_VERSION}`, ...args]];
+let n8nBin = process.env.N8N_BIN;
+const n8nCommand = (args) => [n8nBin, args];
+
+async function ensureN8n() {
+  if (n8nBin) return;
+  const dir = path.join(os.tmpdir(), 'wa-n8n-e2e-cache', N8N_VERSION);
+  n8nBin = path.join(dir, 'node_modules', '.bin', process.platform === 'win32' ? 'n8n.cmd' : 'n8n');
+  if (fs.existsSync(n8nBin)) return;
+  log(`installing n8n ${N8N_VERSION} into ${dir} (first run only, takes a few minutes)`);
+  fs.mkdirSync(dir, { recursive: true });
+  await new Promise((resolve, reject) => {
+    execFile('npm', ['install', '--prefix', dir, '--no-audit', '--no-fund', '--loglevel=error', `n8n@${N8N_VERSION}`],
+      { maxBuffer: 64 * 1024 * 1024, timeout: 900000 },
+      (err, stdout, stderr) => (err ? reject(new Error(`npm install n8n failed:\n${stderr}`)) : resolve()));
+  });
 }
 
 function n8nCli(args, env) {
@@ -218,7 +233,8 @@ async function settled(fn, count = 1, workflowId = MAIN_ID, timeoutMs = 30000) {
 const repliesTo = async (to) => (await waMessages()).filter((m) => m.to === to);
 
 // ------------------------------------------------------------------ run
-log(`n8n ${process.env.N8N_BIN ? `(${process.env.N8N_BIN})` : N8N_VERSION} in ${tmp}`);
+await ensureN8n();
+log(`n8n ${process.env.N8N_BIN ? '' : `${N8N_VERSION} `}(${n8nBin}), data in ${tmp}`);
 start('mock-llm', process.execPath, [path.join(ROOT, 'scripts/mock-llm.mjs')], {
   ...process.env, PORT: String(llmPort), MOCK_LLM_API_KEY: LLM_KEY, MOCK_LLM_DELAY_MS: '300',
 });
