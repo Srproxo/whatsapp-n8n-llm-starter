@@ -1,0 +1,35 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "102290129340398",
+      "changes": [
+        {
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "15550001234",
+              "phone_number_id": "106540352242922"
+            },
+            "contacts": [
+              {
+                "profile": { "name": "Sam Example" },
+                "wa_id": "15558889999"
+              }
+            ],
+            "messages": [
+              {
+                "from": "15558889999",
+                "id": "wamid.HBgLMTU1NTg4ODk5OTkVAgASGBQ0QjhEQTAwMDk4NzY1NDMyMUFCAA==",
+                "timestamp": "1761400060",
+                "text": { "body": "I want to talk to a real person, my cake order arrived wrong and I need a refund." },
+                "type": "text"
+              }
+            ]
+          },
+          "field": "messages"
+        }
+      ]
+    }
+  ]
+}

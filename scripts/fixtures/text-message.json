@@ -1,0 +1,35 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "102290129340398",
+      "changes": [
+        {
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "15550001234",
+              "phone_number_id": "106540352242922"
+            },
+            "contacts": [
+              {
+                "profile": { "name": "Alex Example" },
+                "wa_id": "15557654321"
+              }
+            ],
+            "messages": [
+              {
+                "from": "15557654321",
+                "id": "wamid.HBgLMTU1NTc2NTQzMjEVAgASGBQyQTdGRTAwMDEyMzQ1Njc4OUFCAA==",
+                "timestamp": "1761400000",
+                "text": { "body": "Hola! ¿A qué hora abren el sábado y cuánto sale una docena de galletas?" },
+                "type": "text"
+              }
+            ]
+          },
+          "field": "messages"
+        }
+      ]
+    }
+  ]
+}

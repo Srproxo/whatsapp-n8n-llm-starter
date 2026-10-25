@@ -1,0 +1,4 @@
+GET /webhook/whatsapp?hub.mode=subscribe&hub.verify_token=__WA_VERIFY_TOKEN__&hub.challenge=1158201444 HTTP/1.1
+Host: localhost:5678
+User-Agent: facebookexternalua
+Accept: */*
